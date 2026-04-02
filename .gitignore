@@ -1,0 +1,41 @@
+# --- Entorno Virtual ---
+env/
+venv/
+ENV/
+.env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# --- Bases de Datos (Privacidad y Datos Personales) ---
+# Se recomienda no subir los .db para que cada instalación empiece limpia
+*.db
+*.sqlite3
+
+# --- Reportes y Archivos Generados ---
+*.pdf
+*.xlsx
+*.csv
+output/
+
+# --- Python: Archivos de compilación y cache ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# --- Streamlit ---
+.streamlit/
+static/
+
+# --- Sistema Operativo ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- VS Code / Editores ---
+.vscode/
+.idea/
+*.swp
+*.bak

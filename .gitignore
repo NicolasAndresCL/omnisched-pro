@@ -39,3 +39,7 @@ desktop.ini
 .idea/
 *.swp
 *.bak
+
+.db
+
+horarios_trabajador.py

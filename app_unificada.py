@@ -414,11 +414,10 @@ elif opcion == "📄 Impresión: Horario Completo":
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(190, 10, "CONTROL DE TIEMPO UNIFICADO", ln=True, align='C')
-            pdf.set_font("Arial", "", 10)
-            pdf.cell(190, 7, f"Semana: {sem_sel}", ln=True, align='C')
+            pdf.cell(190, 10, f"Mi Horario Semanal — Semana: {sem_sel}", ln=True, align='C')
             pdf.ln(5)
 
+            fecha_lunes = datetime.strptime(sem_sel, '%Y-%m-%d')
             for d in DIAS_ORDEN:
                 st_d = df_st[df_st['dia'] == d]
                 py_d = df_py[df_py['dia'] == d]
@@ -427,7 +426,8 @@ elif opcion == "📄 Impresión: Horario Completo":
 
                 pdf.set_font("Arial", "B", 10)
                 pdf.set_fill_color(230, 230, 230)
-                pdf.cell(190, 8, f"--- {d.upper()} ---", 1, ln=True, fill=True)
+                fecha_dia = fecha_lunes + timedelta(days=DIAS_ORDEN.index(d))
+                pdf.cell(190, 8, f"--- {d.upper()} {fecha_dia.day:02d} ---", 1, ln=True, fill=True)
 
                 pdf.set_font("Arial", "", 9)
                 for _, r in st_d.iterrows():

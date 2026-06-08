@@ -414,7 +414,7 @@ elif opcion == "📄 Impresión: Horario Completo":
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(190, 10, f"Mi Horario Semanal — Semana: {sem_sel}", ln=True, align='C')
+            pdf.cell(190, 10, f"Mi Horario Semanal - Semana: {sem_sel}", ln=True, align='C')
             pdf.ln(5)
 
             fecha_lunes = datetime.strptime(sem_sel, '%Y-%m-%d')

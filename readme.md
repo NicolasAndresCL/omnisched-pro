@@ -5,6 +5,7 @@ Aplicación web desarrollada con **Streamlit** para la autogestión profesional 
 ## Características Principales
 
 - **Gestión Dual de Datos:** Bases de datos independientes en SQLite para la carga académica y la laboral.
+- **Copia de Horarios:** Carga cualquier semana anterior como plantilla y edita solo las diferencias — ideal para horarios semestrales de estudio y turnos laborales con pocas variaciones.
 - **Cálculos Automáticos de Tiempo:**
   - Horas **Bruto** y **Neto** (descuento automático de 1h de colación en turnos largos).
   - **Horas Extras** para domingos y trasnoches de madrugada de sábado (00:00–03:00).
@@ -21,13 +22,14 @@ Aplicación web desarrollada con **Streamlit** para la autogestión profesional 
 | Base de Datos | SQLite3 |
 | Procesamiento | Pandas |
 | Visualización | Plotly |
-| Exportación | FPDF / Openpyxl |
+| Exportación | FPDF |
 
 ## Estructura del Proyecto
 
 ```text
 .
 ├── app_unificada.py         # Aplicación principal
+├── CLAUDE.md                # Guía de arquitectura para desarrollo con IA
 ├── Lanzar_App.bat           # Script de ejecución rápida (Windows)
 ├── env/                     # Entorno virtual de Python
 ├── horario_estudios.db      # Base de datos de clases (autogenerada)
@@ -67,12 +69,18 @@ streamlit run app_unificada.py
 
 | Módulo | Descripción |
 |---|---|
-| 📝 Registro Estudio | Ingreso de asignaturas, días y bloques horarios |
+| 📝 Registro Estudio | Ingreso de asignaturas por bloque horario, con vista de clases activas y borrado individual |
 | 📝 Registro Laboral | Configuración semanal de turnos con detección de trasnoches |
 | 📄 Impresión Completo | Reporte maestro que unifica ambas agendas en un solo cronograma |
 | 📄 Impresión Estudio | Reporte específico de carga académica semanal |
 | 📄 Impresión Laboral | Reporte de horas brutas, netas y extras para control de pagos |
 | 📊 Gantt Semanal | Vista gráfica integrada de estudio y trabajo sobre eje temporal |
+
+### Flujo de copia de horarios
+
+**Estudio (semestral):** Registra el horario la primera semana del semestre → cada semana siguiente abre "Copiar desde otra semana", elige la semana base y copia. Borra o agrega lo que cambie.
+
+**Laboral (semanal con pocas variaciones):** Abre "Cargar desde otra semana", elige la semana más reciente. El formulario se pre-rellena con esos turnos. Ajusta los días que sean distintos y guarda.
 
 ---
 

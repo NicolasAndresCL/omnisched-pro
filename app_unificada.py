@@ -10,8 +10,11 @@ st.set_page_config(page_title="Sistema Integral Horarios PRO", layout="wide", pa
 
 DB_ESTUDIOS = 'horario_estudios.db'
 DB_LABORAL  = 'horarios.db'
+DIAS_ORDEN  = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
 
-DIAS_ORDEN = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+# Rotar la clave del formulario de estudio para limpiar el campo "asignatura" tras guardar
+if 'form_key' not in st.session_state:
+    st.session_state.form_key = 0
 
 # --- BASE DE DATOS ---
 
@@ -257,8 +260,49 @@ if opcion == "📝 Registro: Horario Estudio":
     fecha_ref  = st.date_input("Semana del Lunes:", datetime.now())
     inicio_sem = get_semana_inicio(fecha_ref)
 
+    # ── Clases ya registradas para la semana seleccionada ──
+    clases_actuales = read_df(DB_ESTUDIOS,
+        "SELECT rowid, dia, asignatura, entrada, salida, horas FROM clases WHERE semana_inicio=?",
+        (inicio_sem,))
+
+    if not clases_actuales.empty:
+        st.markdown("**Clases registradas esta semana:**")
+        for _, r in clases_actuales.iterrows():
+            c_dia, c_mat, c_hor, c_btn = st.columns([2, 4, 3, 1])
+            c_dia.write(r['dia'])
+            c_mat.write(r['asignatura'])
+            c_hor.write(f"{r['entrada']} – {r['salida']}  ({r['horas']}h)")
+            if c_btn.button("🗑️", key=f"del_est_{r['rowid']}"):
+                query_db(DB_ESTUDIOS, "DELETE FROM clases WHERE rowid=?", (int(r['rowid']),))
+                st.rerun()
+        st.divider()
+
+    # ── Copiar semana completa desde otra semana ──
+    with st.expander("📋 Copiar desde otra semana"):
+        semanas_est = read_df(DB_ESTUDIOS,
+            "SELECT DISTINCT semana_inicio FROM clases ORDER BY semana_inicio DESC")
+        otras_est = [s for s in semanas_est['semana_inicio'] if s != inicio_sem]
+        if otras_est:
+            sem_origen_est = st.selectbox("Semana origen:", otras_est, key="copy_est_origen")
+            st.caption("⚠️ Reemplazará las clases existentes en la semana destino.")
+            if st.button("📥 Copiar clases"):
+                clases_origen = read_df(DB_ESTUDIOS,
+                    "SELECT dia, asignatura, entrada, salida, horas FROM clases WHERE semana_inicio=?",
+                    (sem_origen_est,))
+                with sqlite3.connect(DB_ESTUDIOS) as conn:
+                    conn.execute("DELETE FROM clases WHERE semana_inicio=?", (inicio_sem,))
+                    for _, r in clases_origen.iterrows():
+                        conn.execute("INSERT INTO clases VALUES (?,?,?,?,?,?)",
+                            (inicio_sem, r['dia'], r['asignatura'], r['entrada'], r['salida'], r['horas']))
+                st.success(f"{len(clases_origen)} clases copiadas desde {sem_origen_est}.")
+                st.rerun()
+        else:
+            st.info("No hay otras semanas disponibles para copiar.")
+
+    # ── Añadir clase individual ──
+    # Rotar la clave del form limpia el campo "asignatura" automáticamente tras guardar
     with st.expander("➕ Añadir Nueva Clase", expanded=True):
-        with st.form("form_st"):
+        with st.form(f"form_st_{st.session_state.form_key}"):
             c1, c2  = st.columns(2)
             dia     = c1.selectbox("Día", DIAS_ORDEN)
             materia = c2.text_input("Nombre de la Asignatura", placeholder="Ej: Anatomía")
@@ -274,6 +318,7 @@ if opcion == "📝 Registro: Horario Estudio":
                 query_db(DB_ESTUDIOS,
                     "INSERT INTO clases VALUES (?,?,?,?,?,?)",
                     (inicio_sem, dia, materia, h_in.strftime("%H:%M"), h_out.strftime("%H:%M"), dur))
+                st.session_state.form_key += 1
                 st.success("Clase registrada con éxito.")
 
 # ==========================================
@@ -285,6 +330,27 @@ elif opcion == "📝 Registro: Horario Laboral":
     inicio_sem    = get_semana_inicio(fecha_ref)
     clases_semana = read_df(DB_ESTUDIOS,
         "SELECT dia, entrada, salida FROM clases WHERE semana_inicio=?", (inicio_sem,))
+
+    # ── Cargar turnos desde otra semana (pre-rellena el formulario) ──
+    with st.expander("📋 Cargar desde otra semana"):
+        semanas_lab = read_df(DB_LABORAL,
+            "SELECT DISTINCT semana_inicio FROM registros ORDER BY semana_inicio DESC")
+        otras_lab = [s for s in semanas_lab['semana_inicio'] if s != inicio_sem]
+        if otras_lab:
+            sem_lab_origen = st.selectbox("Semana origen:", otras_lab, key="copy_lab_origen")
+            st.caption("Carga los horarios en el formulario para que puedas editarlos antes de guardar.")
+            if st.button("📥 Cargar turnos"):
+                turnos_origen = read_df(DB_LABORAL,
+                    "SELECT * FROM registros WHERE semana_inicio=?", (sem_lab_origen,))
+                for _, r in turnos_origen.iterrows():
+                    d = r['dia']
+                    st.session_state[f"l_{d}"] = bool(r['es_libre'])
+                    if not r['es_libre']:
+                        st.session_state[f"i_{d}"] = datetime.strptime(r['entrada'], "%H:%M").time()
+                        st.session_state[f"s_{d}"] = datetime.strptime(r['salida'],  "%H:%M").time()
+                st.rerun()
+        else:
+            st.info("No hay otras semanas disponibles para cargar.")
 
     st.markdown("### Configura tus turnos")
     inputs = {}
@@ -470,10 +536,10 @@ elif opcion == "📊 Gantt: Visualización Semanal":
         turnos_activos = df_py[df_py['es_libre'] == 0] if not df_py.empty else pd.DataFrame()
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("🟢 Bloques estudio",        len(df_st))
-        col2.metric("🔴 Turnos PeYa",             len(turnos_activos))
-        col3.metric("📚 Horas académicas",         f"{df_st['horas'].sum():.1f}h" if not df_st.empty else "0h")
-        col4.metric("💼 Horas laborales (neto)",   f"{turnos_activos['neto'].sum():.1f}h" if not turnos_activos.empty else "0h")
+        col1.metric("🟢 Bloques estudio",         len(df_st))
+        col2.metric("🔴 Turnos PeYa",              len(turnos_activos))
+        col3.metric("📚 Horas académicas",          f"{df_st['horas'].sum():.1f}h" if not df_st.empty else "0h")
+        col4.metric("💼 Horas laborales (neto)",    f"{turnos_activos['neto'].sum():.1f}h" if not turnos_activos.empty else "0h")
 
         st.divider()
         st.plotly_chart(generar_gantt(df_st, df_py, sem_sel), use_container_width=True)
